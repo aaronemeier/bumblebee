@@ -1,0 +1,3 @@
+# Ansible related files
+ansible.log
+*.retry
