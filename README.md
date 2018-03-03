@@ -1,4 +1,6 @@
 # Bumblebee
+[![Build Status](https://travis-ci.com/cynja/bumblebee.svg?token=qsq6ipkGdWY8noRaZ81h&branch=master)](https://travis-ci.com/cynja/bumblebee)
+
 My setup
 
 ## Preparation
