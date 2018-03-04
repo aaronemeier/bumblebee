@@ -6,6 +6,7 @@ My setup
 ## Preparation
 Below is a list with things, that are not yet automized and need to be done manually.
 
+- Login to App Store
 - Save the ansible-vault password in mac OS Keychain
 ```bash
 security add-generic-password \
@@ -31,7 +32,7 @@ security add-generic-password \
 
 ## Setup
 ```bash
-git clone https://gitlab.com/cynja/bumblebee.git ~/.setup
+git clone https://github.com/cynja/bumblebee.git ~/.setup
 ```
 
 ## Deploy
