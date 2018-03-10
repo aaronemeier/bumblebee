@@ -4,9 +4,9 @@
 My setup
 
 ## Preparation
-Below is a list with things, that are not yet automized and need to be done manually.
+Below is a list with things, that have not been automatized yet and need to be done manually.
 
-- Login to App Store
+- Login to App Store (for App Store install)
 - Save the ansible-vault password in mac OS Keychain
 ```bash
 security add-generic-password \
@@ -29,6 +29,17 @@ security add-generic-password \
   - Restart
 - Setup filevault (disk encryption)
   - Just open `System preferences`, select `Security & Privacy`and `Turn On FileVault`
+- Setup Windows VM 
+  - Create new Windows 10 VM in Parallels
+  - Set network adapter to shared (NAT)
+  - Enable remote access via winrm
+```powershell
+# Download latest setup script
+Invoke-WebRequest https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1 -OutFile $env:temp/ConfigureRemotingForAnsible.ps1
+
+# Enable remote access via winrm
+powershell.exe  -ExecutionPolicy Bypass -File $env:temp/ConfigureRemotingForAnsible.ps1 -CertValidityDays 3650 -Verbose -SkipNetworkProfileCheck
+```
 
 ## Setup
 ```bash

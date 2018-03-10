@@ -1,42 +1,132 @@
 ---
 system:
   hostname: "bumblebee"
-  setup_path: "$HOME/.setup"
+  home_path: "/Users/cynja"
+  setup_path: "/.setup"
   keyboard_layout: "LogitechSwissGerman"
-  dotfiles_url: "https://gitlab.com/cynja/dotfiles.git"
+  dotfiles_url: "https://github.com/cynja/dotfiles.git"
   dotfiles_script: "init.sh"
   default_shell: "/bin/zsh"
   username: "cynja"
   time:
     zone: "Europe/Zurich"
     server: "ch.pool.ntp.org"
-
 packages:
   pip:
     - beets
-    # Enable fingerprinting support in beets
     - pyacoustid
+    - pywinrm
     - virtualenvwrapper
     - virtualenv
 
 apps:
   # Check /Applications/*.app for a list of apps
   disabled:
-    - "DVD Player"
-    - Dashboard
-    - Facetime
-    - "Image Capture"
-    - Launchpad
-    - Mail
-    - Maps
-    - Messages
-    - Notes
-    - Photos
-    - "QuickTime Player"
-    - Reminders
-    - Safari
-    - Siri
-    - Stickies
-    - TextEdit
-    - iBooks
-    - iTunes
+    - Calendar.app
+    - Chess.app
+    - Contacts.app
+    - Dashboard.app
+    - "DVD Player.app"
+    - Facetime.app
+    - iBooks.app
+    - "Image Capture.app"
+    - iTunes.app
+    - Launchpad.app
+    - Mail.app
+    - Maps.app
+    - Messages.app
+    - "Microsoft OneNote.app"
+    - "Microsoft Outlook.app"
+    - Notes.app
+    - Photos.app
+    - "QuickTime Player.app"
+    - Reminders.app
+    - Safari.app
+    - Siri.app
+    - Stickies.app
+    - TextEdit.app
+    - "Utilities/Terminal.app"
+  hidden:
+    - TeX
+    - Xcode.app
+vm:
+  hostname: "ratchet"
+  packages:
+    chocolatey:
+      - origin
+      - visualstudio2017community
+      - 7zip
+  settings:
+    # Privacy settings
+    - DisableTelemetry
+    - DisableWiFiSense
+    - DisableSmartScreen
+    - DisableWebSearch
+    - DisableAppSuggestions
+    - DisableBackgroundApps
+    - DisableLockScreenSpotlight
+    - DisableLocationTracking
+    - DisableMapUpdates
+    - DisableFeedback
+    - DisableAdvertisingID
+    - DisableCortana
+    - DisableErrorReporting
+    - SetP2PUpdateLocal
+    - DisableAutoLogger
+    - DisableDiagTrack
+    - DisableWAPPush
+    # Security settings
+    - DisableAdminShares
+    - DisableSMB1
+    - SetCurrentNetworkPrivate
+    - SetUnknownNetworksPublic
+    - DisableHomeGroups
+    - DisableSharedExperiences
+    - DisableRemoteAssistance
+    - DisableAutoplay
+    - DisableAutorun
+    # System settings
+    - DisableDefragmentation
+    - DisableOneDrive
+    - DisableXboxFeatures
+    - DisableAdobeFlash
+    - EnableF8BootMenu
+    # Remove bloat
+    - UninstallOneDrive
+    - UninstallMsftBloat
+    - UninstallThirdPartyBloat
+    - UninstallWindowsStore
+    - UninstallMediaPlayer
+    - UninstallWorkFolders
+    # UI settings
+    - DisableActionCenter
+    - DisableLockScreen
+    - HideNetworkFromLockScreen
+    - ShowFileOperationsDetails
+    - DisableFileDeleteConfirm
+    - HideTaskbarSearchBox
+    - HideTaskView
+    - ShowSmallTaskbarIcons
+    - HideTaskbarPeopleIcon
+    - ShowTrayIcons
+    - HideKnownExtensions
+    - HideHiddenFiles
+    - ShowSyncNotifications
+    - HideRecentShortcuts
+    - SetExplorerThisPC
+    - HideThisPCFromDesktop
+    - HideUserFolderFromDesktop
+    - ShowDesktopInExplorer
+    - HideDocumentsFromThisPC
+    - ShowDocumentsInExplorer
+    - HideDownloadsFromThisPC
+    - ShowDownloadsInExplorer
+    - HideMusicFromThisPC
+    - HidePicturesInExpolorer
+    - HidePicturesFromThisPC
+    - HideVideosInExplorer
+    - HideVideosFromThisPC
+    - Hide3DObjectsFromExplorer
+    - Hide3DObjectsFromThisPC
+    - DisableThumbnails
+    - DisableThumbsDB
