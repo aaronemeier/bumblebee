@@ -1,5 +1,5 @@
 # Bumblebee
-[![Build Status](https://travis-ci.com/cynja/bumblebee.svg?token=qsq6ipkGdWY8noRaZ81h&branch=master)](https://travis-ci.com/cynja/bumblebee)
+[![Build Status](https://travis-ci.org/cynja/bumblebee.svg?branch=master)](https://travis-ci.org/cynja/bumblebee)
 
 My setup
 
@@ -29,7 +29,7 @@ security add-generic-password \
   - Restart
 - Setup filevault (disk encryption)
   - Just open `System preferences`, select `Security & Privacy`and `Turn On FileVault`
-- Setup Windows VM 
+- Setup Windows VM
   - Create new Windows 10 VM in Parallels
   - Set network adapter to shared (NAT)
   - Enable remote access via winrm
