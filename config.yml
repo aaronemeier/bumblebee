@@ -4,7 +4,7 @@ system:
   home_path: "/Users/cynja"
   setup_path: "/.setup"
   keyboard_layout: "LogitechSwissGerman"
-  dotfiles_url: "https://github.com/cynja/dotfiles.git"
+  dotfiles_url: "git@github.com:cynja/dotfiles.git"
   dotfiles_script: "init.sh"
   default_shell: "/bin/zsh"
   username: "cynja"
