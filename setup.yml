@@ -422,7 +422,7 @@
       become_user: root
 
     - name: Turn display off after 5min while on battery
-      command: pmset -b sleep 5
+      command: pmset -b displaysleep 5 sleep 5
       become: true
       become_user: root
 
