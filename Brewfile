@@ -84,7 +84,6 @@ mas "Enpass", id: 732710998
 mas "iMovie", id: 408981434
 mas "Microsoft Remote Desktop", id: 715768417
 mas "Moodle Desktop", id: 1255924440
-mas "Slack", id: 803453959
 mas "Telegram", id: 747648890
 mas "WhatsApp", id: 1147396723
 mas "Xcode", id: 497799835
