@@ -50,12 +50,12 @@ brew "crisidev/chunkwm/chunkwm"
 brew "koekeishiya/formulae/khd"
 cask "alfred"
 cask "android-file-transfer"
-cask "android-sdk"
 cask "blackscreen-screensaver"
 cask "burn"
 cask "cevelop"
 cask "dash"
 cask "docker"
+cask "dotnet-sdk"
 cask "google-backup-and-sync"
 cask "google-chrome"
 cask "handbrake"
@@ -83,7 +83,6 @@ mas "Affinity Photo", id: 824183456
 mas "Enpass", id: 732710998
 mas "iMovie", id: 408981434
 mas "Microsoft Remote Desktop", id: 715768417
-mas "Moodle Desktop", id: 1255924440
 mas "Telegram", id: 747648890
 mas "WhatsApp", id: 1147396723
 mas "Xcode", id: 497799835
