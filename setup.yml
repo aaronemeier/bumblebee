@@ -16,7 +16,7 @@
 
     - name: Install apps using Brewfile
       shell: brew bundle install --file="Brewfile"
-      when: bundle_check_result|failed
+      when: bundle_check_result is failed
 
     - name: Install packages from pip
       pip: name="{{ packages.pip|join(' ') }}" state=latest executable=pip3 extra_args="--user"
@@ -35,6 +35,13 @@
 
     - name: Init dotfiles
       shell: cd "{{ system.home_path }}/.dotfiles/" && ./init.sh
+
+    - name: Install vscode extensions
+      shell: |
+                while read extension
+                do
+                    code --install-extension "$extension"
+                done < "{{ system.home_path }}/.setup/vscode-extensions"
 
     # Setup: chunkwm & khd
     - name: Check codesign certificate
@@ -57,11 +64,11 @@
 
     - name: Sign chunkwm
       command: codesign -fs "chunkwm-khd-cert" /usr/local/opt/chunkwm/bin/chunkwm
-      when: not certificate_facts|failed and verification_chunkwm|failed
+      when: not certificate_facts is failed and verification_chunkwm is failed
 
     - name: Sign khd
       command: codesign -fs "chunkwm-khd-cert" /usr/local/opt/khd/bin/khd
-      when: not certificate_facts|failed and verification_khd|failed
+      when: not certificate_facts is failed and verification_khd is failed
 
     - name: Start chunkwm
       command: brew services start chunkwm
@@ -735,20 +742,21 @@
       # Note: Ansible installs chocolatey automatically if not present
       win_chocolatey: name="{{ item }}" state=present
       with_items: "{{ vm.packages.chocolatey }}"
-      when: not check_host_alive|failed
+      when: not check_host_alive is failed
       
     - name: Upgrade chocolatey packages
       win_chocolatey: name=all state=latest
-      when: not check_host_alive|failed 
+      when: not check_host_alive is failed 
 
     # Setup: System
     - name: Set hostname
       win_domain_membership: domain_admin_user="{{ ansible_user }}" domain_admin_password="{{ ansible_password }}" hostname="{{ vm.hostname }}" state=workgroup workgroup_name=WORKGROUP
-      when: not check_host_alive|failed 
+      when: not check_host_alive is failed 
 
     - name: Copy wallpaper
       win_copy: src="files/wallpaper.jpg" dest="C:\Windows\Web\Wallpaper\wallpaper.jpg"
-
+      when: not check_host_alive is failed 
+    
     - name: Set wallpaper
       win_regedit:
         path: '{{ item.path }}'
@@ -760,7 +768,8 @@
           name: Wallpaper
           data: 'C:\Windows\Web\Wallpaper\wallpaper.jpg'
           type: string
-      
+      when: not check_host_alive is failed 
+       
     - name: Enable firewall
       win_firewall:
         state: enabled
@@ -768,9 +777,9 @@
           - Domain
           - Private
           - Public
-      when: not check_host_alive|failed
+      when: not check_host_alive is failed
 
     - name: Set custom settings via setup script
       script: "files/Win10.ps1 {{ item }}"
       with_flattened: "{{ vm.settings }}"
-      when: not check_host_alive|failed
+      when: not check_host_alive is failed
