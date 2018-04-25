@@ -18,6 +18,7 @@ packages:
     - pywinrm
     - virtualenvwrapper
     - virtualenv
+    - pylint
 
 apps:
   # Check /Applications/*.app for a list of apps
