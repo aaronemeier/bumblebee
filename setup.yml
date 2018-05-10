@@ -700,6 +700,17 @@
     - name: Disable keyboard popup and enable key repeat
       osx_defaults: key=ApplePressAndHoldEnabled state=present value=false
 
+    - name: Improve bluetooth audio quality
+      osx_defaults: domain="com.apple.BluetoothAudioAgent" key="{{ item }}" state=present type=int value=80
+      with_items:
+        - "Apple Bitpool Max (editable)"
+        - "Apple Bitpool Min (editable)"
+        - "Apple Initial Bitpool (editable)"
+        - "Apple Initial Bitpool Min (editable)"
+        - "Negotiated Bitpool"
+        - "Negotiated Bitpool Max"
+        - "Negotiated Bitpool Min"
+
     # Hidden Preferences: Finder
     - name: Empty trash securely by default
       osx_defaults: domain="com.apple.finder" key=EmptyTrashSecurely state=present type=bool value=true
