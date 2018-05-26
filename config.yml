@@ -1,55 +1,8 @@
 ---
 system:
   hostname: "bumblebee"
-  home_path: "/Users/cynja"
-  setup_path: "/.setup"
-  keyboard_layout: "LogitechSwissGerman"
-  dotfiles_url: "git@github.com:cynja/dotfiles.git"
-  dotfiles_script: "init.sh"
-  default_shell: "/bin/zsh"
   username: "cynja"
-  time:
-    zone: "Europe/Zurich"
-    server: "ch.pool.ntp.org"
-packages:
-  pip:
-    - beets
-    - pyacoustid
-    - pywinrm
-    - virtualenvwrapper
-    - virtualenv
-    - pylint
-
-apps:
-  # Check /Applications/*.app for a list of apps
-  disabled:
-    - Calendar.app
-    - Chess.app
-    - Contacts.app
-    - Dashboard.app
-    - "DVD Player.app"
-    - Facetime.app
-    - iBooks.app
-    - "Image Capture.app"
-    - iTunes.app
-    - Launchpad.app
-    - Mail.app
-    - Maps.app
-    - Messages.app
-    - "Microsoft OneNote.app"
-    - "Microsoft Outlook.app"
-    - Notes.app
-    - Photos.app
-    - "QuickTime Player.app"
-    - Reminders.app
-    - Safari.app
-    - Siri.app
-    - Stickies.app
-    - TextEdit.app
-    - "Utilities/Terminal.app"
-  hidden:
-    - TeX
-    - Xcode.app
+  dotfiles: "git@github.com:cynja/dotfiles.git"
 vm:
   hostname: "ratchet"
   packages:
