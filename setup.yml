@@ -4,9 +4,13 @@
   vars_files:
     - config.yml
   tasks:
-    # Install: Packages
     - name: Enable Homebrew bundle tap
       homebrew_tap: name="homebrew/bundle"
+      environment:
+        HOMEBREW_UPGRADE_CLEANUP: "1"
+        HOMEBREW_NO_ANALYTICS: "1"
+        HOMEBREW_NO_INSECURE_REDIRECT: "1"
+        HOMEBREW_CASK_OPTS: "--appdir=/Applications --fontdir=/Library/Fonts"
 
     - name: Check if Brewfile contains updates
       shell: brew bundle check --file="Brewfile"
@@ -17,137 +21,99 @@
     - name: Install apps using Brewfile
       shell: brew bundle install --file="Brewfile"
       when: bundle_check_result is failed
+      environment:
+        HOMEBREW_UPGRADE_CLEANUP: "1"
+        HOMEBREW_NO_ANALYTICS: "1"
+        HOMEBREW_NO_INSECURE_REDIRECT: "1"
+        HOMEBREW_CASK_OPTS: "--appdir=/Applications --fontdir=/Library/Fonts"
 
-    - name: Install packages from pip
-      pip: name="{{ packages.pip|join(' ') }}" state=latest executable=pip3 extra_args="--user"
+    - name: Install packages from Pipfile
+      pip: requirements="{{ lookup('env','PWD') }}/Pipfile" state=latest executable=pip3 extra_args="--user"
       environment:
         PIP_REQUIRE_VIRTUALENV: ""
+      
+    - name: Install packages from Npmfile
+      npm: name="{{ item }}" global=true production=true state=present
+      with_lines: cat Npmfile
 
-    # Install: User configs
-    - name: Install swiss keyboard layout
-      copy: src="files/{{ item }}" dest="{{ system.home_path }}/Library/Keyboard Layouts/"
-      with_items:
-        - "LogitechSwissGerman.icns"
-        - "LogitechSwissGerman.keylayout"
+    - name: Install extensions from Vscodefile
+      shell: code --install-extension "{{ item }}"
+      with_lines: cat Vscodefile
+  
+    - name: Check if Paragon ExtFS has been installed
+      stat: path="/Applications/Paragon ExtFS for Mac.app"
+      register: paragon_extfs_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Open Paragon ExtFS installer
+      command: open "/usr/local/Caskroom/paragon-extfs/11/FSInstaller.app"
+      when: not paragon_extfs_check.stat.exists
+
+    - name: Check if Paragon NTFS has been installed
+      stat: path="/Applications/Paragon NTFS for Mac 15.app"
+      register: paragon_ntfs_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Open Paragon NTFS installer
+      command: open "/usr/local/Caskroom/paragon-ntfs/15/FSInstaller.app"
+      when: not paragon_ntfs_check.stat.exists
 
     - name: Install dotfiles
-      git: repo="{{ system.dotfiles_url }}" dest="{{ system.home_path }}/.dotfiles" update=false
+      git: repo="{{ system.dotfiles }}" dest="/Users/{{ system.username }}/.dotfiles" update=false
 
     - name: Init dotfiles
-      shell: cd "{{ system.home_path }}/.dotfiles/" && ./init.sh
+      shell: cd "/Users/{{ system.username }}/.dotfiles/" && ./init.sh
 
-    - name: Install vscode extensions
-      shell: |
-                while read extension
-                do
-                    code --install-extension "$extension"
-                done < "{{ system.home_path }}/.setup/vscode-extensions"
-
-    # Setup: chunkwm & khd
-    - name: Check codesign certificate
-      command: security find-certificate -c chunkwm-khd-cert
-      register: certificate_facts
-      ignore_errors: true
-      changed_when: false
-
-    - name: Verify chunkwm signature
-      command: codesign -v /usr/local/opt/chunkwm/bin/chunkwm
-      register: verification_chunkwm
-      ignore_errors: true
-      changed_when: false
-
-    - name: Verify khd signature
-      command: codesign -v /usr/local/opt/khd/bin/khd
-      register: verification_khd
-      ignore_errors: true
-      changed_when: false
-
-    - name: Sign chunkwm
-      command: codesign -fs "chunkwm-khd-cert" /usr/local/opt/chunkwm/bin/chunkwm
-      when: not certificate_facts is failed and verification_chunkwm is failed
-
-    - name: Sign khd
-      command: codesign -fs "chunkwm-khd-cert" /usr/local/opt/khd/bin/khd
-      when: not certificate_facts is failed and verification_khd is failed
-
-    - name: Start chunkwm
-      command: brew services start chunkwm
-
-    - name: Start khd
-      command: brew services start khd
-      
-    # Setup: System
-    - name: Disable Bootsound
-      shell: >
-              nvram SystemAudioVolume=" ";
-              nvram SystemAudioVolumeDB=" ";
+    - name: Cleanup some folders
+      file: dest="{{ item }}" state=absent
+      with_items:
+          - "/Users/{{ system.username }}/Applications"
+          - "/Users/{{ system.username }}/Public"
+          - "/Applications/Microsoft OneNote.app"
+          - "/Applications/Microsoft Outlook.app"
       become: true
       become_user: root
-  
-    - name: Hide Spotlight tray-icon
-      file: path="/System/Library/CoreServices/Search.bundle/Contents/MacOS/Search" mode=0600 
+    
+    - name: Setup dnscrypt
+      ini_file: path="/usr/local/etc/dnscrypt-proxy.toml" section="{{ item.section }}" option="{{ item.option }}" value="{{ item.value }}" state="{{ item.state }}"
+      with_items:
+        - { section: "null", option: "server_names", value: "", state: "absent" }
+        - { section: "null", option: "listen_addresses", value: "['127.0.0.1:53', '[::1]:53']", state: "present" }
+        - { section: "null", option: "max_clients", value: "10", state: "present" }
+        - { section: "null", option: "ipv4_servers", value: "true", state: "present" }
+        - { section: "null", option: "ipv6_servers", value: "", state: "absent" }
+        - { section: "null", option: "dnscrypt_servers", value: "true", state: "present" }
+        - { section: "null", option: "doh_servers", value: "true", state: "present" }
+        - { section: "null", option: "require_dnssec", value: "true", state: "present" }
+        - { section: "null", option: "require_nolog", value: "true", state: "present" }
+        - { section: "null", option: "require_nofilter", value: "true", state: "present" }
+        - { section: "null", option: "fallback_resolver", value: "1.1.1.1:53", state: "present" }
+        - { section: "null", option: "ignore_system_dns", value: "true", state: "present" }
+        - { section: "null", option: "block_ipv6", value: "true", state: "present" }
+        - { section: "null", option: "cache", value: "true", state: "present" }
+        - { section: "null", option: "cache_size", value: "8192", state: "present" }
+      notify:
+        - Restart dnscrypt
+
+    - name: Update dns resolver
+      shell: networksetup -setdnsservers "{{ item }}" 127.0.0.1
+      with_items:
+        - "Wi-Fi"
+        - "Thunderbolt Ethernet"
+        - "Thunderbolt Bridge"
+        - "Bluetooth PAN"
       become: true
       become_user: root
 
-    - name: Disable root user
-      command: dsenableroot -d
-
-    - name: Enable homebrew path for gui apps
+    - name: Enable Homebrew path
       command: launchctl config user path '/usr/local/bin:$PATH'
       become: true
       become_user: root
-  
-    - name: Hide apps
-      command: "chflags hidden '/Applications/{{ item }}'"
-      with_items: 
-        - "{{ apps.disabled }}"
-        - "{{ apps.hidden }}"
-      become: true
-      become_user: root
-    
-    - name: Disable apps
-      file: path="/Applications/{{ item }}" mode=0000
-      with_items: "{{ apps.disabled }}"
-      become: true
-      become_user: root
-    
-    - name: Set zsh as default shell
+
+    - name: Set shell
       user: shell="/bin/zsh" name="{{ system.username }}"
-      become: true
-      become_user: root
-
-    - name: Set timezone
-      command: systemsetup -f -settimezone "{{ system.time.zone }}"
-      become: true
-      become_user: root
-
-    - name: Enable ntp sync
-      command: systemsetup -f -setusingnetworktime on
-      become: true
-      become_user: root
-
-    - name: Set ntp server
-      command: "systemsetup -f -setnetworktimeserver '{{ system.time.server|default('ch.pool.ntp.org') }}'"
-      become: true
-      become_user: root
-
-    - name: Disable wake on lan
-      command: systemsetup -f -setwakeonnetworkaccess off
-      become: true
-      become_user: root
-
-    - name: Disable system reboot after freeze
-      command: systemsetup -f -setrestartfreeze off
-      become: true
-      become_user: root
-
-    - name: Disable remote login
-      command: systemsetup -f -setremotelogin off
-      become: true
-      become_user: root
-
-    - name: Disable remote apple events
-      command: systemsetup -f -setremoteappleevents off
       become: true
       become_user: root
 
@@ -157,6 +123,26 @@
             scutil --set ComputerName "{{ system.hostname }}";
             scutil --set HostName "{{ system.hostname }}";
             scutil --set LocalHostName "{{ system.hostname }}";
+      become: true
+      become_user: root
+
+    - name: Set netbios name
+      osx_defaults: domain="/Library/Preferences/SystemConfiguration/com.apple.smb.server" key=NetBIOSName value="{{ system.hostname }}"
+      become: true
+      become_user: root
+
+    - name: Disable captitative portal assistant to improve security
+      osx_defaults: domain="/Library/Preferences/SystemConfiguration/com.apple.captive.control" key="Active" state=present type=bool value=false
+      become: true
+      become_user: root
+
+    - name: Disable hyperlink auditing beacon for additional privacy
+      osx_defaults: domain="com.apple.Safari" key="com.apple.Safari.ContentPageGroupIdentifier.WebKit2HyperlinkAuditingEnabled" state=present type=bool value=false
+    
+    - name: Disable bootsound
+      shell: >
+              nvram SystemAudioVolume=" ";
+              nvram SystemAudioVolumeDB=" ";
       become: true
       become_user: root
 
@@ -176,6 +162,7 @@
         - { app: "com.microsoft.VSCode", ext: "bat" }
         - { app: "com.microsoft.VSCode", ext: "cmd" }
         - { app: "com.microsoft.VSCode", ext: "xml" }
+        - { app: "com.microsoft.VSCode", ext: "plist" }
         # Set vscode as default for Java
         - { app: "com.microsoft.VSCode", ext: "properties" }
         - { app: "com.microsoft.VSCode", ext: "gradle" }
@@ -195,371 +182,20 @@
         - { app: "com.microsoft.VSCode", ext: "ddl" }
         - { app: "com.microsoft.VSCode", ext: "dml" }
         - { app: "com.microsoft.VSCode", ext: "pgsql" }
-        # Set vlc as default for music files
-        - { app: "org.videolan.vlc", ext: "mp3" }
-        - { app: "org.videolan.vlc", ext: "flac" }
-        - { app: "org.videolan.vlc", ext: "aac" }
-        - { app: "org.videolan.vlc", ext: "wma" }
-        - { app: "org.videolan.vlc", ext: "ogg" }
-        # Set vlc as default for video files
-        - { app: "org.videolan.vlc", ext: "mpg" }
-        - { app: "org.videolan.vlc", ext: "mkv" }
-        - { app: "org.videolan.vlc", ext: "mp4" }
-        - { app: "org.videolan.vlc", ext: "wmv" }
-        - { app: "org.videolan.vlc", ext: "m4a" }
+        # Set Quick Time Player as default for music files
+        - { app: "com.apple.QuickTimePlayerX", ext: "mp3" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "flac" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "aac" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "wma" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "ogg" }
+        # Set Quick Time Player as default for video files
+        - { app: "com.apple.QuickTimePlayerX", ext: "mpg" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "mkv" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "mp4" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "wmv" }
+        - { app: "com.apple.QuickTimePlayerX", ext: "m4a" }
 
-    # Setup: Paragon
-    - name: Check if Paragon ExtFS has been installed
-      stat: path="/Applications/Paragon ExtFS for Mac 11.app"
-      register: paragon_extfs_check
-      changed_when: false
-      ignore_errors: true
-
-    - name: Open Paragon ExtFS installer
-      command: open "/usr/local/Caskroom/paragon-extfs/11/FSInstaller.app"
-      when: not paragon_extfs_check.stat.exists
-    
-    - name: Check if Paragon NTFS has been installed
-      stat: path="/Applications/Paragon NTFS for Mac 15.app"
-      register: paragon_ntfs_check
-      changed_when: false
-      ignore_errors: true
-
-    - name: Open Paragon NTFS installer
-      command: open "/usr/local/Caskroom/paragon-ntfs/15/FSInstaller.app"
-      when: not paragon_ntfs_check.stat.exists
-  
-    # Setup: Home folder
-    - name: Create projects folder
-      file: dest="{{ system.home_path }}/Projects" state=directory mode=0770
-
-    - name: Hide parallels folder
-      command: chflags hidden "{{ system.home_path }}/Parallels/"
-
-    - name: Delete public folder
-      file: dest="{{ system.home_path }}/Public" state=directory
-
-    # Preferences: System > General
-    - name: Enable to always show scrollbars
-      osx_defaults: key="AppleShowScrollBars" state=present value=WhenScrolling
-
-    - name: Enable dark menu bar and dock
-      osx_defaults: key=AppleInterfaceStyle state=present value=Dark
-
-    - name: Set highlight color to graphite
-      osx_defaults: key=AppleHighlightColor state=present value="0.847059 0.847059 0.862745"
-
-    - name: Set sidebar icon size to small
-      osx_defaults: key=NSTableViewDefaultSizeMode state=present type=int value=1
-    
-    - name: Enable jump to the spot that's clicked when click in the scroll bar
-      osx_defaults: key=AppleScrollerPagingBehavior state=present type=int value=1
-
-    - name: Enable close windows when quitting an app
-      osx_defaults: key=NSQuitAlwaysKeepsWindows state=present type=bool value=false
-    
-    - name: Set save recent items to none
-      osx_defaults: key=NSNavRecentPlacesLimit state=present value=0
-
-    # Preferences: System > Desktop & Screensaver
-    - name: Set wallpaper
-      command: osascript -e 'tell application "System Events" to tell every desktop to set picture to "{{ system.home_path }}/{{ system.setup_path }}/files/wallpaper.jpg"'
-
-    - name: Set screensaver
-      # Note: osx_defaults does not support dicts yet
-      command: defaults -currentHost write com.apple.screensaver moduleDict -dict moduleName Blackscreen path '"{{ system.home_path }}/Library/Screen Savers/BlackScreen.saver"' type 0
-
-    # Preferences: System > Dock
-    - name: Set icons to optimal size in dock
-      osx_defaults: domain="com.apple.dock" key=tilesize state=present type=float value=36
-
-    - name: Disable magnification
-      osx_defaults: domain="com.apple.dock" key="mouse-over-hilite-stack" state=present type=bool value=false
-
-    - name: Move dock to left side
-      osx_defaults: domain="com.apple.dock" key=orientation state=present value=left
-
-    - name: Set minimize windows to using to scale effect
-      osx_defaults: domain="com.apple.dock" key=mineffect state=present value=scale
-
-    - name: Set prefer tabs when opening documents to always
-      osx_defaults: key=AppleWindowTabbingMode state=present value=always
-
-    - name: Disable minimize windows into application icon
-      osx_defaults: domain="com.apple.dock" key="minimize-to-application" state=present type=bool value=false
-
-    - name: Enable automatically hide and show the dock
-      osx_defaults: domain="com.apple.dock" key=autohide state=present type=bool value=true
-    
-    - name: Enable show indicators for open applications
-      osx_defaults: domain="com.apple.dock" key="show-process-indicators" state=present type=bool value=true
-
-    # Preferences: System > Mission Control
-    - name: Enable auto rearrange spaces based on recent use
-      osx_defaults: domain="com.apple.dock" key="mru-spaces" state=present type=bool value=true
-    
-    - name: Disable dashboard space in mission control
-      osx_defaults: domain="com.apple.dock" key="dashboard-in-overlay" state=present type=bool value=true
-    
-    - name: Disable dashboard
-      osx_defaults: domain="com.apple.dashboard" key="{{ item.key }}" state=present type="{{ item.type }}" value="{{ item.val }}"
-      with_items:
-        - { key: "dashboard-enabled-state", type: int, val: 1 }
-        - { key: mcx-disabled, type: bool, val: true }
-
-    - name: Disable all hot corners
-      osx_defaults: domain="com.apple.dock" key="{{ item }}" state=present type=int value=0
-      with_items:
-        - "wvous-tl-corner"
-        - "wvous-tl-modifier"
-        - "wvous-tr-corner"
-        - "wvous-tr-modifier"
-        - "wvous-bl-corner"
-        - "wvous-bl-modifier"
-
-    # Preferences: System > Security & Privacy    
-    - name: Require password after screen saver
-      osx_defaults: domain="com.apple.screensaver" key=askForPassword state=present type=int value=1
-
-    - name: Require password immediately after sleep or screen saver begins
-      osx_defaults: domain="com.apple.screensaver" key=askForPasswordDelay state=present type=float value=0
-
-    - name: Enable firewall
-      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
-      become: true
-      become_user: root
-
-    - name: Disable paranoid modus
-      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setblockall off
-      become: true
-      become_user: root
-
-    - name: Disable allow downloaded signed apps automatically
-      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setallowsignedapp off
-      become: true
-      become_user: root
-
-    - name: Disable allow built-in signed apps automatically
-      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setallowsigned off
-      become: true
-      become_user: root
-    
-    - name: Enable stealth mode
-      command: /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
-      become: true
-      become_user: root
-
-    - name: Enable logging
-      command: >
-          /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingmode on
-          /usr/libexec/ApplicationFirewall/socketfilterfw --setloggingopt throttled
-      become: true
-      become_user: root
-  
-    # Preferences: System > Spotlight
-    - name: Change indexing order
-      shell: > 
-            defaults write com.apple.spotlight orderedItems -array \
-              '{"enabled" = 1;"name" = "APPLICATIONS";}' \
-              '{"enabled" = 0;"name" = "MENU_SPOTLIGHT_SUGGESTIONS";}' \
-              '{"enabled" = 1;"name" = "MENU_CONVERSION";}' \
-              '{"enabled" = 1;"name" = "MENU_EXPRESSION";}' \
-              '{"enabled" = 0;"name" = "MENU_DEFINITION";}' \
-              '{"enabled" = 1;"name" = "DOCUMENTS";}' \
-              '{"enabled" = 0;"name" = "DIRECTORIES";}' \
-              '{"enabled" = 0;"name" = "PRESENTATIONS";}' \
-              '{"enabled" = 0;"name" = "SPREADSHEETS";}' \
-              '{"enabled" = 0;"name" = "PDF";}' \
-              '{"enabled" = 0;"name" = "MESSAGES";}' \
-              '{"enabled" = 1;"name" = "CONTACT";}' \
-              '{"enabled" = 0;"name" = "EVENT_TODO";}' \
-              '{"enabled" = 0;"name" = "IMAGES";}' \
-              '{"enabled" = 0;"name" = "BOOKMARKS";}' \
-              '{"enabled" = 0;"name" = "MUSIC";}' \
-              '{"enabled" = 0;"name" = "MOVIES";}' \
-              '{"enabled" = 0;"name" = "FONTS";}' \
-              '{"enabled" = 0;"name" = "MENU_OTHER";}' \
-              '{"enabled" = 0;"name" = "SOURCE";}';
-      
-    - name: Disable spotlights indexing for new volumes
-      osx_defaults:
-        array_add: true
-        domain: "/.Spotlight-V100/VolumeConfiguration"
-        key: Exclusions
-        state: present
-        type: array
-        value:
-          - "/Volumes"
-      become: true
-      become_user: root
-    
-    # Preferences: System > Notifications
-    - name: Enable Do Not Disturb from 22:00 to 07:00
-      osx_defaults: domain="~/Library/Preferences/ByHost/com.apple.notificationcenterui" key="{{ item.key }}" state=present type=float value="{{ item.val }}"
-      with_items:
-        - { key: dndEnd, val: 420}
-        - { key: dndStart, val: 1320}
-
-    - name: Enable Do Not Disturb when the display is sleeping
-      osx_defaults: domain="~/Library/Preferences/ByHost/com.apple.notificationcenterui" key=dndEnabledDisplaySleep state=present type=bool value=true
-
-    - name: Enable Do Not Disturb when mirroring to TVs and projectors
-      osx_defaults: domain="~/Library/Preferences/ByHost/com.apple.notificationcenterui" key=dndMirroring state=present type=bool value=true
-    
-    # Preferences: System > Energy Saver
-    # Note: Display settings with pmset -g custom
-    - name: Turn display off after 30min while on ac
-      command: pmset -c displaysleep 30 sleep 30
-      become: true
-      become_user: root
-
-    - name: Enable put hard disks to sleep when possible while on ac
-      command: pmset -c disksleep 1
-      become: true
-      become_user: root
-
-    - name: Disable wake for Wi-Fi network access while on ac
-      command: pmset -c womp 0
-      become: true
-      become_user: root
-
-    - name: Enable power nap while on ac
-      command: pmset -c powernap 1
-      become: true
-      become_user: root
-
-    - name: Turn display off after 5min while on battery
-      command: pmset -b displaysleep 5 sleep 5
-      become: true
-      become_user: root
-
-    - name: Enable put hard disks to sleep when possible while on battery
-      command: pmset -b disksleep 1
-      become: true
-      become_user: root
-
-    - name: Enable tim display while on battery
-      command: pmset -b lessbright 1
-      become: true
-      become_user: root
-
-    - name: Disable wake for Wi-Fi network access while on battery
-      command: pmset -b womp 0
-      become: true
-      become_user: root
-
-    - name: Enable power nap while on battery
-      command: pmset -c powernap 1
-      become: true
-      become_user: root
-      
-    # Preferences: System >  Keyboard
-    - name: Set faster key repeat rate
-      osx_defaults: key="KeyRepeat" state=present type=int value=2
-    
-    - name: Enable to automatically illuminate built-in keyboard in low light
-      osx_defaults: domain="com.apple.BezelServices" key="kDim" state=present type=bool value=true
-
-    - name: Turn off keyboard illumination when computer is not used for 5 minutes
-      osx_defaults: domain="com.apple.BezelServices" key="kDimTime" state=present type=int value=300
-
-    - name: Enable Use F1, F2 etc. as standard function keys
-      osx_defaults: key="com.apple.keyboard.fnState" state=present type=int value=1
-
-    - name: Delete dictionary replacements
-      osx_defaults:
-        key: NSUserDictionaryReplacementItems
-        state: absent
-        #type: array
-        #value: ""
-
-    - name: Disable correct spelling automatically
-      osx_defaults: key="{{ item }}" state=present type=bool value=false
-      with_items:
-        - NSAutomaticSpellingCorrectionEnabled
-        - WebAutomaticSpellingCorrectionEnabled
-
-    - name: Disable capitalize words automatically
-      osx_defaults: key=NSAutomaticCapitalizationEnabled state=present type=bool value=false
-
-    - name: Disable add period with double space
-      osx_defaults: key=NSAutomaticPeriodSubstitutionEnabled state=present type=bool value=false
-
-    - name: Disable use smart quotes and dashes
-      osx_defaults: key=NSAutomaticQuoteSubstitutionEnabled state=present type=bool value=false
-  
-    - name: Set full keyboard access in windows and dialogs to all controls
-      osx_defaults: key="AppleKeyboardUIMode" state=present type=int value=3
-    
-    # Preferences: System > Trackpad
-    - name: Set trackpad options and gestures
-      osx_defaults: domain="com.apple.AppleMultitouchTrackpad" key="{{ item.key }}" state=present type=int value={{ item.val }}
-      with_items:
-        # Enable tap to click        
-        - { key: Clicking, val: 1}
-        # Disable Force click and haptic feedback
-        - { key: ActuateDetents, val: 0}
-        - { key: ForceSuppressed, val: 1}
-        # Disable App Expose gesture 
-        - { key: TrackpadFiveFingerPinchGesture, val: 0}
-        # Disable Launchpad gesture
-        - { key: TrackpadFourFingerPinchGesture, val: 0}
-        # Disable Mission Control gesture
-        - { key: TrackpadFourFingerVertSwipeGesture, val: 0}
-        # Disable Desktop gesture
-        - { key: TrackpadThreeFingerVertSwipeGesture, val: 0}
-        # Disable Notification Center Gesture 
-        - { key: TrackpadTwoFingerFromRightEdgeSwipeGesture, val: 0}
-
-    - name: Disable Scroll direction natural
-      osx_defaults: key="com.apple.swipescrolldirection" state=present type=int value=0
-
-    - name: Enable secondary click
-      osx_defaults: key=ContextMenuGesture state=present type=int value=1
-
-    - name: Disable show desktop gesture
-      osx_defaults: domain="com.apple.dock" key=showDesktopGestureEnabled state=present type=int value=0
-
-    - name: Disable show launchpad gesture
-      osx_defaults: domain="com.apple.dock" key=showLaunchpadGestureEnabled state=present type=int value=0
-
-    - name: Disable show mission control gesture
-      osx_defaults: domain="com.apple.dock" key=showMissionControlGestureEnabled state=present type=int value=0
-
-    # Preferences: System > Sound
-    - name: Turn off alert sound volume 
-      osx_defaults: key="com.apple.sound.beep.volume" state=present type=float value=0
-    
-    - name: Disable play user interface sound effects
-      osx_defaults: key="com.apple.sound.uiaudio.enabled" state=present type=int value=0
-
-    - name: Enable show volume in menu bar
-      osx_defaults:
-        array_add: true
-        domain: "com.apple.systemuiserver"
-        key: menuExtras
-        state: present
-        type: array
-        value:
-          - "/System/Library/CoreServices/Menu Extras/Volume.menu"
-
-    # Preferences: Finder
-    - name: Disable desktop items
-      osx_defaults: domain="com.apple.finder" key="{{ item }}" state=present type=bool value=false
-      with_items:
-        - "ShowExternalHardDrivesOnDesktop"
-        - "ShowHardDrivesOnDesktop"
-        - "ShowMountedServersOnDesktop"
-        - "ShowRemovableMediaOnDesktop"
-        - "CreateDesktop"
-
-    - name: Set desktop as default location for new finder windows
-      osx_defaults: domain="com.apple.finder" key="{{ item.key }}" state=present value="{{ item.var }}"
-      with_items:
-        - { key: "NewWindowTarget", var: "PfDe" }
-        - { key: "NewWindowTargetPath", var: "file://${HOME}/Desktop/" }
-      
-    - name: Remove all tags
+    - name: Remove all tags in Finder
       osx_defaults:
         domain: "com.apple.finder"
         key: FavoriteTagNames
@@ -568,104 +204,51 @@
         value:
           - ""
 
-    - name: Disable recent tags in sidebar
-      osx_defaults: domain="com.apple.finder" key=ShowRecentTags state=present type=bool value=false
-
-    - name: Disable show all filename extensions
-      osx_defaults: domain="com.apple.finder" key=AppleShowAllExtensions state=present type=bool value=false
-
-    - name: Disable show warning before changing an extension
-      osx_defaults: domain="com.apple.finder" key=FXEnableExtensionChangeWarning state=present type=bool value=false
-
-    - name: Disable show warning before removing from iCloud Drive
-      osx_defaults: domain="com.apple.finder" key=FXEnableRemoveFromICloudDriveWarning state=present type=bool value=false    
-
-    - name: Disable show warning before emptying the trash
-      osx_defaults: domain="com.apple.finder" key=WarnOnEmptyTrash state=present type=bool value=false
-
-    - name: Enable Remove items from the trash after 30 days
-      osx_defaults: domain="com.apple.finder" key=FXRemoveOldTrashItems state=present type=bool value=true
-
-    - name: Enable keep folders on top when sorting by name
-      osx_defaults: domain="com.apple.finder" key=_FXSortFoldersFirst state=present type=bool value=true
-    
-    - name: Set when performing a searhc to search the current folder
-      osx_defaults: domain="com.apple.finder" key=FXDefaultSearchScope state=present value=SCcf
-
-    # UI Preferences: Finder > View options
-    - name: Set arrange by to name as default
-      osx_defaults: domain="com.apple.finder" key=FXPreferredGroupBy value=Name
-    
-    - name: Set group by to name as default
-      osx_defaults: domain="com.apple.finder" key=FXArrangeGroupViewBy value=Name
-
-    - name: Set always open in list view as default for all users
-      osx_defaults: domain="com.apple.finder" key=FXPreferredViewStyle value=Nlsv
-      become: true
-      become_user: root
-
-    - name: Set always open in list view as default for current user
-      osx_defaults: host="currentHost" domain="com.apple.finder" key=FXPreferredViewStyle value=Nlsv
-
-    - name: Set always open in list view default for current host
-      osx_defaults: host="currentHost" domain="com.apple.finder" key=FXPreferredViewStyle value=Nlsv
-
-    # Hidden Preferences: System
-    - name: Set netbios name
-      osx_defaults: domain="/Library/Preferences/SystemConfiguration/com.apple.smb.server" key=NetBIOSName value="{{ system.hostname }}"
-      become: true
-      become_user: root
-
-    - name: Show battery percentage in status bar
-      osx_defaults: domain="com.apple.menuextra.battery" key=ShowPercent value=YES
-
     - name: Enable spring loading folder when dragging items into it
       osx_defaults: key="com.apple.springing.enable" state=present type=bool value=true
 
     - name: Enable instant spring loading
       osx_defaults: key="com.apple.springing.delay" state=present type=float value=0.2
 
-    - name: Disable scroll on dock items
+    - name: Disable scroll on Dock items
       osx_defaults: domain="com.apple.dock" key="scroll-to-open" state=present type=bool value=false
 
-    - name: Remove all item from dock
+    - name: Remove all item from Dock
       osx_defaults: domain="com.apple.dock" key="persistent-apps" state=absent
 
-    - name: Expand save panel by default
-      osx_defaults: key=NSNavPanelExpandedStateForSaveMode state=present type=bool value=true
-
-    - name: Expand print panel by default
-      osx_defaults: key="{{ item }}" state=present type=bool value=true
+    - name: Expand all panels by default
+      osx_defaults: key={{ item }} state=present type=bool value=true
       with_items:
+        - "NSNavPanelExpandedStateForSaveMode"
         - "PMPrintingExpandedStateForPrint2"
         - "PMPrintingExpandedStateForPrint"
-    
-    - name: Enable quitting printer app automatically once finished
+
+    - name: Close printer app automatically
       osx_defaults: domain="com.apple.print.PrintingPrefs" key="Quit When Finished" state=present type=bool value=true
 
-    - name: Disable saving files to icloud
+    - name: Disable saving new files to iCloud
       osx_defaults: key=NSDocumentSaveNewDocumentsToCloud state=present type=bool value=false
 
-    - name: Disable creation of .DS_STORE files on network
+    - name: Disable creating .DS_STORE files on network
       osx_defaults: domain="com.apple.desktopservices" key=DSDontWriteNetworkStores state=present value=true
 
-    - name: Disable Creation of .DS_STORE files on usb volumes
+    - name: Disable creating .DS_STORE files on usb volumes
       osx_defaults: domain="com.apple.desktopservices" key=DSDontWriteUSBStores state=present value=true
 
     - name: Check for software updates daily
       osx_defaults: domain="com.apple.SoftwareUpdate" key="ScheduleFrequency" state=present type=int value=1
 
-    - name: Disable airdrop
+    - name: Disable Airdrop
       osx_defaults: domain="com.apple.NetworkBrowser" key=DisableAirDrop state=present type=bool value=true
 
-    - name: Set better window resize speed for apps
+    - name: Speedup window resize
       osx_defaults: key=NSWindowResizeTime state=present type=float value=0.1
 
-    - name: Disable the crash reporter
+    - name: Disable crash reporting
       osx_defaults: domain="com.apple.CrashReporter" key=DialogType state=present value=none
 
     - name: Set screenshot location to Desktop
-      osx_defaults: domain="com.apple.screencapture" key="location" state=present value="{{ system.home_path }}/Desktop"
+      osx_defaults: domain="com.apple.screencapture" key="location" state=present value="/Users/{{ system.username }}/Desktop"
 
     - name: Set screenshot image type to png
       osx_defaults: domain="com.apple.screencapture" key=type state=present value=png
@@ -673,45 +256,11 @@
     - name: Disable shadow in screenshots
       osx_defaults: domain="com.apple.screencapture" key="disable-shadow" state=present type=bool value=true
 
-    - name: Show the main window when launching activity monitor
-      osx_defaults: domain="com.apple.ActivityMonitor" key=OpenMainWindow state=present type=bool value=true
-
-    - name: Show all processes in activity monitor
-      osx_defaults: domain="com.apple.ActivityMonitor" key=ShowCategory state=present type=int value=0
-
-    - name: Sort activity monitor by cpu usage
-      osx_defaults: domain="com.apple.ActivityMonitor" key=SortColumn state=present value=CPUUsage
-
-    - name: Sort activity monitor in ascending order
-      osx_defaults: domain="com.apple.ActivityMonitor" key=SortDirection state=present type=int value=0
-
-    - name:  Disable bonjour service
-      osx_defaults:
-        domain: "/System/Library/LaunchDaemons/com.apple.mDNSResponder.plist"
-        key: "ProgramArguments"
-        state: present
-        type: array
-        value:
-          - "/usr/sbin/mDNSResponder"
-          - "-NoMulticastAdvertisements"
+    - name: Disable bonjour service
+      osx_defaults: domain="/Library/Preferences/com.apple.mDNSResponder.plist" key="NoMulticastAdvertisements" state=present type=bool value="YES"
       become: true
       become_user: root
 
-    - name: Disable keyboard popup and enable key repeat
-      osx_defaults: key=ApplePressAndHoldEnabled state=present value=false
-
-    - name: Improve bluetooth audio quality
-      osx_defaults: domain="com.apple.BluetoothAudioAgent" key="{{ item }}" state=present type=int value=80
-      with_items:
-        - "Apple Bitpool Max (editable)"
-        - "Apple Bitpool Min (editable)"
-        - "Apple Initial Bitpool (editable)"
-        - "Apple Initial Bitpool Min (editable)"
-        - "Negotiated Bitpool"
-        - "Negotiated Bitpool Max"
-        - "Negotiated Bitpool Min"
-
-    # Hidden Preferences: Finder
     - name: Empty trash securely by default
       osx_defaults: domain="com.apple.finder" key=EmptyTrashSecurely state=present type=bool value=true
 
@@ -721,8 +270,7 @@
         - "General"
         - "OpenWith"
         - "Privileges"
-  
-    # Hidden Preferences: Time Machine
+
     - name: Set timemachine backup interval to 24h
       osx_defaults: domain="/System/Library/LaunchDaemons/com.apple.backupd-auto" key=StartInterval state=present type=int value=86400
       become: yes
@@ -733,12 +281,16 @@
       become: true
       become_user: root
 
-    - name: Disable time machine while on battery
+    - name: Disable time machine backup while on battery
       osx_defaults: domain="/Library/Preferences/com.apple.TimeMachine" key=RequiresACPower state=present type=bool value=true
       become: true
       become_user: root
 
-- hosts: ratchet
+  handlers:
+    - name: Restart dnscrypt
+      service: name="dnscrypt-proxy" state="restarted"
+
+- hosts: "{{ vm.hostname }}"
   gather_facts: false
   vars_files:
     - config.yml
@@ -748,39 +300,21 @@
       ignore_errors: true
       register: check_host_alive
       delegate_to: localhost
-  
+
     - name: Install chocolatey packages
       # Note: Ansible installs chocolatey automatically if not present
       win_chocolatey: name="{{ item }}" state=present
       with_items: "{{ vm.packages.chocolatey }}"
       when: not check_host_alive is failed
-      
+
     - name: Upgrade chocolatey packages
       win_chocolatey: name=all state=latest
-      when: not check_host_alive is failed 
+      when: not check_host_alive is failed
 
-    # Setup: System
     - name: Set hostname
       win_domain_membership: domain_admin_user="{{ ansible_user }}" domain_admin_password="{{ ansible_password }}" hostname="{{ vm.hostname }}" state=workgroup workgroup_name=WORKGROUP
-      when: not check_host_alive is failed 
+      when: not check_host_alive is failed
 
-    - name: Copy wallpaper
-      win_copy: src="files/wallpaper.jpg" dest="C:\Windows\Web\Wallpaper\wallpaper.jpg"
-      when: not check_host_alive is failed 
-    
-    - name: Set wallpaper
-      win_regedit:
-        path: '{{ item.path }}'
-        name: '{{ item.name }}'
-        data: '{{ item.data }}'
-        type: '{{ item.type }}'
-      with_items:
-        - path: 'HKCU:\Control Panel\Desktop'
-          name: Wallpaper
-          data: 'C:\Windows\Web\Wallpaper\wallpaper.jpg'
-          type: string
-      when: not check_host_alive is failed 
-       
     - name: Enable firewall
       win_firewall:
         state: enabled
@@ -791,6 +325,6 @@
       when: not check_host_alive is failed
 
     - name: Set custom settings via setup script
-      script: "files/Win10.ps1 {{ item }}"
+      script: "Win10.ps1 {{ item }}"
       with_flattened: "{{ vm.settings }}"
       when: not check_host_alive is failed
