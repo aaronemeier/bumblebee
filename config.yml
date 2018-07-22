@@ -3,6 +3,35 @@ system:
   hostname: "bumblebee"
   username: "cynja"
   dotfiles: "git@github.com:cynja/dotfiles.git"
+apps:
+  disabled:
+    - Calendar.app
+    - Chess.app
+    - Contacts.app
+    - Dashboard.app
+    - "DVD Player.app"
+    - Facetime.app
+    - iBooks.app
+    - "Image Capture.app"
+    - iTunes.app
+    - Launchpad.app
+    - Mail.app
+    - Maps.app
+    - Messages.app
+    - Notes.app
+    - Photos.app
+    - "Photo Booth.app"
+    - "QuickTime Player.app"
+    - Reminders.app
+    - Safari.app
+    - Siri.app
+    - Stickies.app
+    - TextEdit.app
+    - "Utilities/Terminal.app"
+  hidden:
+    - Roland
+    - TeX
+    - Xcode.app
 vm:
   hostname: "ratchet"
   packages:
