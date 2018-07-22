@@ -1,8 +1,6 @@
-beets==1.4.6
-pip==10.0.1
+beets==1.4.7
+pip==18.0
 pyacoustid==1.1.5
-pylint==1.9.1
-pywinrm==0.3.0
-setuptools==39.1.0
+pylint==2.0.0
+setuptools==40.0.0
 virtualenvwrapper==4.8.2
-wheel==0.31.1
